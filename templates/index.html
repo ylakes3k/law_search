@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legal Research Desk</title>
+<script src="/static/marked.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0d12; --surface:#12151c; --surface2:#171b24; --surface3:#1d222d;
+    --line:#272d39; --line2:#333b49;
+    --ink:#eef1f7; --muted:#9aa4b5; --faint:#677082;
+    --brand:#7c8cff; --brand2:#5563e6;
+    --web:#3b82f6; --reddit:#ff5722; --hn:#ff9800;
+    --drill:#2dd4a7; --drop:#6b7384; --done:#34d399; --warn:#f5b545; --err:#f0616d;
+    --hi:#f5b545; --med:#54b6f0; --lo:#7c8aa0;
+    --r:14px; --r2:10px;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01"}
+  a{color:var(--brand);text-decoration:none} a:hover{text-decoration:underline}
+  ::selection{background:rgba(124,140,255,.3)}
+  /* layout */
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  aside{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;
+    position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 20px}
+  .brand .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand2));
+    display:grid;place-items:center;font-weight:800;color:#fff;box-shadow:0 4px 14px -4px var(--brand2)}
+  .brand b{font-size:15.5px;letter-spacing:-.2px}
+  .brand small{display:block;color:var(--faint);font-size:11px;font-weight:500}
+  .navitem{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;
+    color:var(--muted);font-weight:600;font-size:14px;cursor:pointer;border:1px solid transparent}
+  .navitem .ic{width:18px;text-align:center;opacity:.9}
+  .navitem:hover{background:var(--surface2);color:var(--ink)}
+  .navitem.active{background:var(--surface3);color:var(--ink);border-color:var(--line2)}
+  .nav-sep{height:1px;background:var(--line);margin:12px 4px}
+  .currentchip{margin-top:auto;background:var(--surface2);border:1px solid var(--line2);
+    border-radius:11px;padding:11px 13px;cursor:pointer;display:none}
+  .currentchip.show{display:block}
+  .currentchip .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:700;display:flex;align-items:center;gap:7px}
+  .currentchip .g{font-size:12.5px;color:var(--ink);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block}
+  .dot.live{background:var(--brand);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  main{padding:34px 40px 90px;max-width:1120px;width:100%}
+  @media(max-width:860px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.currentchip{margin:0}}
+  /* headings */
+  h1.page{font-size:25px;letter-spacing:-.5px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 26px;max-width:680px}
+  /* cards */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
+  .card+.card{margin-top:18px}
+  label.fld{display:block;font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:.2px;margin:0 0 9px;text-transform:uppercase}
+  textarea{width:100%;background:var(--surface2);border:1px solid var(--line2);color:var(--ink);
+    border-radius:11px;padding:14px 16px;font-size:15.5px;font-family:inherit;min-height:96px;resize:vertical}
+  textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(124,140,255,.15)}
+  /* posture segmented toggle */
+  .seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line2);border-radius:12px;padding:4px;gap:4px}
+  .seg button{border:none;background:none;color:var(--muted);font-weight:700;font-size:13.5px;
+    padding:9px 18px;border-radius:9px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:150px;text-align:left}
+  .seg button .t{font-size:14px}
+  .seg button .d{font-size:11px;font-weight:500;color:var(--faint);line-height:1.3}
+  .seg button.on{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+  .seg button.on .d{color:rgba(255,255,255,.8)}
+  .btn{border:none;border-radius:11px;font-weight:700;font-size:14.5px;padding:13px 24px;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;box-shadow:0 6px 18px -6px var(--brand2)}
+  .btn.primary:disabled{opacity:.5;cursor:default;box-shadow:none}
+  .btn.stop{background:rgba(240,97,109,.12);color:#ff8088;border:1px solid rgba(240,97,109,.4)}
+  .btn.stop:hover{background:rgba(240,97,109,.2)}
+  .ghost{background:var(--surface2);border:1px solid var(--line2);color:var(--ink);padding:8px 14px;
+    border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;display:inline-block}
+  .ghost:hover{border-color:var(--brand);text-decoration:none}
+  /* config panel */
+  .srcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:6px}
+  .srcrow{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .srcrow .top{display:flex;align-items:center;gap:9px}
+  .srcdot{width:9px;height:9px;border-radius:50%}
+  .srcname{font-weight:700;font-size:14px}
+  .srcname .tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:6px;color:#fff;margin-left:6px}
+  .tag.web{background:var(--web)} .tag.reddit{background:var(--reddit)} .tag.hn{background:var(--hn)}
+  .tag.semantic{background:var(--brand2)} .tag.keyword{background:var(--drill)}
+  .srcrow .role{font-size:12.5px;color:var(--muted);margin-top:7px}
+  .srcrow .st{font-size:11.5px;margin-top:8px;font-weight:600}
+  .st.ready{color:var(--done)} .st.bad{color:var(--err)} .st.warn{color:var(--warn)}
+  .policy{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+  .policy h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint)}
+  .policy p{margin:7px 0;font-size:13.5px;color:var(--ink)}
+  .policy .pair{display:flex;gap:10px;margin:7px 0}
+  .policy .pair b{min-width:54px;color:var(--brand)}
+  .safety{margin-top:10px;font-size:12.5px;color:var(--warn);background:rgba(245,181,69,.08);border:1px solid rgba(245,181,69,.25);border-radius:9px;padding:10px 12px}
+  /* run header */
+  .runhead{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);
+    position:sticky;top:0;z-index:20}
+  .runhead .goal{font-weight:650;font-size:16px;letter-spacing:-.2px;margin-bottom:12px;padding-right:10px}
+  .runmeta{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .pill{background:var(--surface2);border:1px solid var(--line2);border-radius:999px;padding:5px 12px;font-weight:600;font-size:12.5px;color:var(--muted)}
+  .pill b{color:var(--ink)}
+  .pill.stage{color:var(--brand);border-color:#3a3f6a;background:rgba(124,140,255,.08)}
+  .pill.posture{text-transform:capitalize}
+  .pill.done{color:var(--done);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08)}
+  .pill.stopped{color:var(--warn);border-color:rgba(245,181,69,.4);background:rgba(245,181,69,.08)}
+  .spinner{width:12px;height:12px;border:2px solid var(--line2);border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:-1px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .section-label{font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint);font-weight:800;margin:28px 0 12px}
+  /* FRAME card */
+  .framebox{border-left:4px solid var(--brand)}
+  .frow{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+  .frow:first-child{border-top:none}
+  .flabel{flex:0 0 116px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);padding-top:2px}
+  .fval{font-size:14px;color:var(--ink)}
+  .fval.intent{font-weight:600}
+  .fval.deliverable{color:#cfe3ff}
+  .fchips{display:flex;gap:7px;flex-wrap:wrap}
+  .fchip{font-size:12px;background:rgba(245,181,69,.1);border:1px solid rgba(245,181,69,.32);color:#f5c97a;border-radius:999px;padding:3px 11px;font-weight:600}
+  .fchip::before{content:"filter: "; color:var(--faint);font-weight:500}
+  /* PLAN SPINE */
+  .plan{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh)}
+  .planhead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .planhead .ttl{font-weight:700;font-size:15px}
+  .progress{flex:1;height:7px;background:var(--surface3);border-radius:99px;overflow:hidden;max-width:280px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--drill),var(--done));border-radius:99px;transition:width .5s}
+  .planhead .count{font-size:13px;color:var(--muted);font-weight:600}
+  .pursuing{font-size:12.5px;color:var(--brand);background:rgba(124,140,255,.08);border:1px solid #3a3f6a;border-radius:8px;padding:6px 11px;margin-bottom:12px;display:inline-block}
+  .planitem{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+  .planitem:first-of-type{border-top:none}
+  .pmark{width:22px;height:22px;border-radius:7px;flex:0 0 auto;display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:1px}
+  .pmark.open{background:var(--surface3);color:var(--faint);border:1px solid var(--line2)}
+  .pmark.answered{background:rgba(52,211,153,.16);color:var(--done);border:1px solid rgba(52,211,153,.4)}
+  .pq{font-size:13.5px}
+  .pq .qid{font-weight:800;color:var(--faint);font-size:11px;margin-right:6px}
+  .pq .gap{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--warn);
+    background:rgba(245,181,69,.12);border:1px solid rgba(245,181,69,.3);border-radius:5px;padding:1px 6px;margin-left:7px}
+  .pq .ans{font-size:11.5px;color:var(--done);margin-left:7px}
+  .pwhy{font-size:12px;color:var(--faint);margin-top:2px}
+  .newflash{animation:flash 1.6s ease}
+  @keyframes flash{0%{background:rgba(245,181,69,.18)}100%{background:transparent}}
+  /* DECISION FLOW (real visual) */
+  .flowwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 12px 14px;box-shadow:var(--sh);overflow-x:auto}
+  .flow{display:flex;align-items:flex-start;min-height:120px;padding:6px 8px 2px}
+  .fnode{flex:0 0 auto;width:190px;position:relative;display:flex;flex-direction:column;align-items:center}
+  .fconnect{position:absolute;top:21px;left:-95px;width:95px;height:3px;background:linear-gradient(90deg,var(--drill),var(--drill));opacity:.55}
+  .fnode:first-child .fconnect{display:none}
+  .fcircle{width:44px;height:44px;border-radius:50%;background:var(--surface2);border:2.5px solid var(--drill);
+    display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--ink);z-index:2;position:relative}
+  .fnode.active .fcircle{border-color:var(--brand);box-shadow:0 0 0 5px rgba(124,140,255,.18);animation:pulse 1.4s infinite}
+  .fnode.done .fcircle{border-color:var(--done);color:var(--done)}
+  .fnode.stop .fcircle{border-color:var(--warn);color:var(--warn)}
+  .fpursue{font-size:11.5px;color:var(--ink);text-align:center;margin-top:9px;font-weight:600;line-height:1.35;padding:0 6px;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .flineage{font-size:10px;color:var(--brand);margin-top:4px;font-weight:700}
+  /* pruned branches dropping off the node */
+  .fdrops{margin-top:10px;width:100%;display:flex;flex-direction:column;gap:5px;align-items:center}
+  .fdrop{font-size:10px;color:var(--drop);text-decoration:line-through;opacity:.7;max-width:170px;text-align:center;
+    position:relative;padding-top:9px}
+  .fdrop::before{content:"";position:absolute;top:0;left:50%;width:1px;height:7px;background:var(--line2);border-left:1px dashed var(--drop)}
+  .flow .ftail{flex:0 0 auto;align-self:center;color:var(--faint);font-size:12px;padding-left:6px}
+  /* pass detail */
+  .pass{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-top:14px;overflow:hidden;box-shadow:var(--sh)}
+  .pass .ph{padding:15px 20px;display:flex;align-items:center;gap:12px;cursor:pointer}
+  .pass .ph .num{width:28px;height:28px;border-radius:8px;background:var(--surface3);border:1.5px solid var(--brand);display:grid;place-items:center;font-weight:800;font-size:13px;flex:0 0 auto}
+  .pass.done .ph .num{border-color:var(--done);color:var(--done)}
+  .pass .ph .ttl{font-weight:650;font-size:14.5px;letter-spacing:-.1px}
+  .pass .ph .badge{margin-left:auto;font-size:12px;color:var(--faint);white-space:nowrap}
+  .pass .body{padding:2px 20px 20px;border-top:1px solid var(--line)}
+  .reason{background:rgba(124,140,255,.06);border:1px solid #313862;border-radius:11px;padding:12px 15px;margin-top:15px}
+  .reason .rl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--brand);margin-bottom:5px}
+  .reason.doneR{background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.35)}
+  .reason.doneR .rl{color:var(--done)}
+  .covmap{display:flex;flex-direction:column;gap:5px}
+  .covrow{display:flex;align-items:center;gap:9px;padding:6px 9px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;font-size:12.5px;flex-wrap:wrap}
+  .covrow.target{border-color:var(--brand);background:rgba(124,140,255,.07)}
+  .covid{font-weight:800;color:var(--faint);min-width:26px}
+  .covbadge{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:999px}
+  .covbadge.thin{background:rgba(240,97,109,.16);color:#ff8a93}
+  .covbadge.adequate{background:rgba(84,182,240,.16);color:var(--med)}
+  .covbadge.strong{background:rgba(52,211,153,.16);color:var(--done)}
+  .covsat{font-size:10.5px;color:var(--drop);font-weight:700}
+  .covimp{font-size:10.5px;color:var(--warn);font-weight:700}
+  .covtarget{font-size:10.5px;color:var(--brand);font-weight:800}
+  .covnote{color:var(--muted);font-size:12px;flex:1;min-width:160px}
+  .reason .rt{font-size:13.5px}
+  .sect{margin-top:18px}
+  .sect h4{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:800;margin:0 0 10px}
+  .goalview{font-size:13px;color:var(--muted);font-style:italic;border-left:3px solid var(--brand);padding:7px 13px;background:var(--surface2);border-radius:0 8px 8px 0}
+  .judge{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.judge{grid-template-columns:1fr}}
+  .jbox{border-radius:12px;padding:13px 15px}
+  .jbox.drill{background:rgba(45,212,167,.05);border:1px solid rgba(45,212,167,.28)}
+  .jbox.drop{background:rgba(107,115,132,.05);border:1px solid var(--line)}
+  .jlab{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+  .jbox.drill .jlab{color:var(--drill)} .jbox.drop .jlab{color:var(--drop)}
+  .ji{margin:9px 0;font-size:13.5px}
+  .ji .lead{font-weight:600}
+  .jbox.drill .ji .lead::before{content:"▸ ";color:var(--drill)}
+  .jbox.drop .ji .lead{text-decoration:line-through;opacity:.85}
+  .jbox.drop .ji .lead::before{content:"✕ ";display:inline-block}
+  .jbox.drop .ji{color:var(--drop)}
+  .ji .why{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .lineagetag{font-size:9.5px;font-weight:800;color:var(--brand);border:1px solid #3a3f6a;border-radius:5px;padding:1px 6px;margin-left:6px}
+  .srch{display:flex;align-items:flex-start;gap:11px;padding:11px 13px;background:var(--surface2);border:1px solid var(--line);border-radius:11px;margin:8px 0}
+  .srctag{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 9px;border-radius:7px;color:#fff;margin-top:1px}
+  .srctag.web{background:var(--web)} .srctag.reddit{background:var(--reddit)} .srctag.hn{background:var(--hn)}
+  .srctag.semantic{background:var(--brand2)} .srctag.keyword{background:var(--drill)}
+  /* pipeline tracker sublabels */
+  .fpursue .pipesub{display:block;font-size:10px;color:var(--muted);font-weight:600;margin-top:3px}
+  .srch .q{font-weight:600;font-size:13.5px;word-break:break-word}
+  .srch .w{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .srch .st2{margin-left:auto;flex:0 0 auto;font-size:12px;font-weight:700;white-space:nowrap}
+  .st2.ok{color:var(--drill)} .st2.fail{color:var(--err)} .st2.run{color:var(--brand)}
+  .via{font-size:10px;color:var(--warn);border:1px solid rgba(245,181,69,.3);border-radius:5px;padding:1px 5px;margin-left:6px}
+  .claim{padding:11px 13px;border:1px solid var(--line);border-left-width:3px;border-radius:9px;margin:8px 0;background:var(--surface2)}
+  .claim.high{border-left-color:var(--hi)} .claim.medium{border-left-color:var(--med)} .claim.low{border-left-color:var(--lo)}
+  .claim .ctext{font-size:13.5px}
+  .cfoot{margin-top:7px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .confbadge{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:2px 8px;border-radius:999px}
+  .confbadge.high{background:rgba(245,181,69,.16);color:var(--hi)}
+  .confbadge.medium{background:rgba(84,182,240,.16);color:var(--med)}
+  .confbadge.low{background:rgba(124,138,160,.18);color:#a7b4c6}
+  .fullbadge{font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 8px;border-radius:999px;background:rgba(52,211,153,.16);color:var(--done)}
+  .snipbadge{font-size:10px;font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:999px;background:var(--surface3);color:var(--faint)}
+  .readrow{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 9px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;margin:5px 0}
+  .readrow .rdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .readrow.ok .rdot{background:var(--done)} .readrow.fail .rdot{background:var(--err)}
+  .readrow.fail{opacity:.8} .readrow .rurl{color:var(--faint);font-size:11.5px}
+  .srclink{font-size:12px}
+  .thread{font-size:13px;color:var(--muted);margin:6px 0;padding-left:17px;position:relative}
+  .thread::before{content:"⌥";position:absolute;left:0;color:var(--brand)}
+  .contra{font-size:12.5px;color:#f79bb0;margin:5px 0;padding-left:17px;position:relative}
+  .contra::before{content:"⚠";position:absolute;left:0}
+  /* synthesis / report */
+  .synthbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 28px 28px;margin-top:18px;box-shadow:var(--sh)}
+  .summary-strip{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+  .stat{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 15px;font-size:12.5px;color:var(--muted)}
+  .stat b{display:block;font-size:19px;color:var(--ink)}
+  .exportbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+  .md h1{font-size:24px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-top:24px}
+  .md h2{font-size:19px;color:#d3dae8;margin-top:28px} .md h3{font-size:16px;color:#bcc6d8;margin-top:20px}
+  .md p,.md li{font-size:14.5px;color:#dce2ee} .md strong{color:#fff}
+  .md blockquote{border-left:3px solid var(--brand);margin:14px 0;padding:5px 16px;background:var(--surface2);color:var(--muted);border-radius:0 8px 8px 0}
+  .md code{background:var(--surface2);padding:2px 6px;border-radius:5px;font-size:.9em}
+  .md table{border-collapse:collapse;width:100%;margin:18px 0;font-size:13.5px}
+  .md th,.md td{border:1px solid var(--line2);padding:9px 12px;text-align:left;vertical-align:top}
+  .md thead th{background:var(--surface3);color:#fff;font-weight:700}
+  .md tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+  /* history */
+  .hrow{display:flex;align-items:center;gap:14px;padding:15px 17px;border:1px solid var(--line);border-radius:12px;margin-top:11px;background:var(--surface);cursor:pointer;box-shadow:var(--sh)}
+  .hrow:hover{border-color:var(--brand)}
+  .hrow .hg{font-weight:650;font-size:14.5px;flex:1;min-width:0}
+  .hrow .hsub{font-size:12px;color:var(--faint);margin-top:3px}
+  .hrow .hm{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
+  .statusdot{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;text-transform:capitalize}
+  .statusdot.completed{background:rgba(52,211,153,.14);color:var(--done)}
+  .statusdot.running{background:rgba(124,140,255,.14);color:var(--brand)}
+  .statusdot.error{background:rgba(240,97,109,.14);color:var(--err)}
+  .muted{color:var(--muted)} .faint{color:var(--faint)} .hidden{display:none}
+  .err-banner{background:rgba(240,97,109,.1);border:1px solid var(--err);color:#ffaeb6;padding:12px 16px;border-radius:11px;margin-top:16px}
+  .empty{color:var(--faint);text-align:center;padding:54px 0;font-size:14px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="mark">L</div>
+      <div><b>Legal Research Desk</b><small>legal corpus · 3-call pipeline</small></div>
+    </div>
+    <div class="navitem active" id="nav-investigate" onclick="showView('investigate')"><span class="ic">✦</span> Investigate</div>
+    <div class="navitem" id="nav-runs" onclick="showView('runs')"><span class="ic">◷</span> Runs</div>
+    <div class="navitem" id="nav-settings" onclick="showView('settings')"><span class="ic">⚙</span> Sources &amp; Settings</div>
+    <div class="nav-sep"></div>
+    <div class="currentchip" id="currentchip" onclick="reopenCurrent()">
+      <div class="lab"><span class="dot live" id="cc-dot"></span> Current run</div>
+      <div class="g" id="cc-goal"></div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- INVESTIGATE (command surface) -->
+    <div id="view-investigate">
+      <h1 class="page">New investigation</h1>
+      <p class="sub">State a legal question or contract-review request. The model frames it, plans the entire research effort, retrieves the whole query battery over the legal corpus, then extracts citation-bound propositions and writes the deliverable — <b>three model calls, no loop</b>: plan → retrieve → review → synthesize.</p>
+      <div class="card">
+        <label class="fld" for="goal">Research goal</label>
+        <textarea id="goal" placeholder="e.g. When a motor carrier delivers cargo to the wrong consignee, what is its liability and can it rely on the $4.41/kg cap under O. Reg. 643/05 if no value was declared on the bill of lading? Provide a legal memo."></textarea>
+        <label class="fld" style="margin-top:18px">Posture <span class="faint" style="text-transform:none;font-weight:500">— nudges plan breadth &amp; how many corpus queries get planned up front</span></label>
+        <div class="seg" id="postureSeg">
+          <button data-p="quick" onclick="setPosture('quick')"><span class="t">⚡ Quick</span><span class="d">tight plan · fewer targeted queries</span></button>
+          <button data-p="deep" class="on" onclick="setPosture('deep')"><span class="t">🔬 Deep</span><span class="d">thorough plan · full query battery across every dimension</span></button>
+        </div>
+        <div style="margin-top:20px"><button class="btn primary" id="startbtn" onclick="startRun()">Start investigation →</button></div>
+      </div>
+
+      <div class="section-label">System configuration — what this system is set to do</div>
+      <div class="card" id="configCard"><div class="muted">loading configuration…</div></div>
+    </div>
+
+    <!-- RUN (live + report) -->
+    <div id="view-run" class="hidden">
+      <div class="runhead">
+        <div class="goal" id="rh-goal"></div>
+        <div class="runmeta">
+          <span class="pill stage" id="rh-stage">—</span>
+          <span class="pill posture" id="rh-posture">—</span>
+          <span class="pill" id="rh-pass">— queries</span>
+          <span class="pill" id="rh-plan">plan —/—</span>
+          <span class="pill" id="rh-elapsed">0s</span>
+          <span class="pill" id="rh-sources"></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn stop" id="stopbtn" onclick="stopRun()">■ Stop / wrap up now</button>
+        </div>
+      </div>
+      <div id="err-slot"></div>
+
+      <div class="section-label">The frame — read this first (veto it if it's a misread)</div>
+      <div class="card framebox" id="framebox"><div class="muted">reconstructing intent…</div></div>
+
+      <div class="section-label">Research plan — the spine (each item = a piece of the deliverable)</div>
+      <div class="plan" id="planbox"><div class="muted">drafting plan…</div></div>
+
+      <div class="section-label">Pipeline — plan → retrieve → review → synthesize</div>
+      <div class="flowwrap"><div class="flow" id="pipeline"></div></div>
+
+      <div class="section-label">Retrieval &amp; extraction</div>
+      <div id="timeline"></div>
+
+      <div id="synth-slot"></div>
+    </div>
+
+    <!-- RUNS (history) -->
+    <div id="view-runs" class="hidden">
+      <h1 class="page">Runs</h1>
+      <p class="sub">Every past investigation. Click to open its report and full audit trail.</p>
+      <div id="historylist"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="hidden">
+      <h1 class="page">Sources &amp; Settings</h1>
+      <p class="sub">The parts of the system and the rules it follows. Nothing here is hidden — this is exactly how depth is decided.</p>
+      <div class="card" id="settingsCard"><div class="muted">loading…</div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SRC_LABEL={semantic:'Semantic',keyword:'Keyword',web:'Web',reddit:'Reddit',hn:'HN'};
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const trunc=(s,n)=>(s&&s.length>n)?s.slice(0,n-1)+'…':(s||'');
+marked.setOptions({gfm:true,breaks:false});
+
+let STATE=null, ES=null, timerInt=null, POSTURE='deep', CONFIG=null;
+
+function blankState(id,goal,posture){
+  return {id,goal,posture:posture||'deep',frame:null,plan:[],planAnswered:0,planTotal:0,pursuing:'',
+    passes:{},order:[],stage:'starting',curPass:0,synthesis:null,status:'running',
+    stopReason:null,startedMs:Date.now(),startedAtMs:null,completedAtMs:null,threadIndex:{},error:null,knownPlanIds:new Set()};
+}
+
+/* nav */
+function showView(v){
+  ['investigate','run','runs','settings'].forEach(x=>document.getElementById('view-'+x).classList.toggle('hidden',x!==v));
+  ['investigate','runs','settings'].forEach(x=>document.getElementById('nav-'+x).classList.toggle('active',x===v));
+  if(v==='runs') loadHistory();
+  if(v==='settings') renderSettings();
+  if(v==='investigate' && !CONFIG) loadConfig();
+}
+function reopenCurrent(){ if(STATE){ showView('run'); } }
+
+/* posture */
+function setPosture(p){ POSTURE=p; [...document.querySelectorAll('#postureSeg button')].forEach(b=>b.classList.toggle('on',b.dataset.p===p)); }
+
+/* config */
+async function loadConfig(){
+  try{ CONFIG=await (await fetch('/api/config')).json(); renderConfigCard(); }
+  catch(e){ document.getElementById('configCard').innerHTML='<div class="muted">config unavailable</div>'; }
+}
+function srcDotColor(st){ return /ready/.test(st)?'var(--done)':(/degrad|fallback/.test(st)?'var(--warn)':'var(--err)'); }
+function srcStClass(st){ return /ready/.test(st)?'ready':(/degrad|fallback|warn/.test(st)?'warn':'bad'); }
+function configSourcesHTML(){
+  return `<div class="srcgrid">`+CONFIG.sources.map(s=>`
+    <div class="srcrow"><div class="top"><span class="srcdot" style="background:${srcDotColor(s.status||'')}"></span>
+      <span class="srcname">${esc(s.name)}<span class="tag ${s.key}">${esc(s.key)}</span></span></div>
+      <div class="role">${esc(s.role)}</div>
+      <div class="st ${srcStClass(s.status||'')}">${esc(s.status||'')} · via ${esc(s.via)}</div></div>`).join('')+`</div>`;
+}
+function configPolicyHTML(){
+  const p=CONFIG.policy;
+  return `<div class="policy"><h4>Depth &amp; stopping policy</h4>
+    <p>${esc(p.summary)}</p>
+    <div class="pair"><b>Quick</b><span class="muted">${esc(p.postures.quick)}</span></div>
+    <div class="pair"><b>Deep</b><span class="muted">${esc(p.postures.deep)}</span></div>
+    <div class="safety">⛑ ${esc(p.safety_note)}</div>
+    <p class="muted" style="margin-top:10px">${esc(p.stop_control)}</p></div>`;
+}
+function renderConfigCard(){
+  document.getElementById('configCard').innerHTML =
+    `<div class="muted" style="font-size:13px;margin-bottom:10px">Sources wired in &amp; live status:</div>`+
+    configSourcesHTML()+configPolicyHTML();
+}
+function renderSettings(){
+  if(!CONFIG){ loadConfig().then(()=>{ if(document.getElementById('settingsCard')) renderSettings(); }); return; }
+  document.getElementById('settingsCard').innerHTML =
+    `<h4 style="margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint)">Sources wired in</h4>`+
+    configSourcesHTML()+configPolicyHTML();
+}
+
+/* start */
+async function startRun(){
+  const goal=document.getElementById('goal').value.trim();
+  if(!goal){alert('Enter a research goal');return;}
+  document.getElementById('startbtn').disabled=true;
+  try{
+    const r=await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({goal,posture:POSTURE})});
+    const j=await r.json();
+    if(j.error){alert(j.error);document.getElementById('startbtn').disabled=false;return;}
+    location.hash='#/run/'+j.run_id; openRun(j.run_id,goal,POSTURE);
+  }catch(e){alert('Failed: '+e);}
+  document.getElementById('startbtn').disabled=false;
+}
+
+/* open / reconnect */
+async function openRun(id,goal,posture){
+  showView('run');
+  STATE=blankState(id,goal,posture);
+  document.getElementById('rh-goal').textContent=goal||'(loading…)';
+  document.getElementById('synth-slot').innerHTML='';
+  document.getElementById('err-slot').innerHTML='';
+  document.getElementById('cc-goal').textContent=goal||'';
+  document.getElementById('currentchip').classList.add('show');
+  startTimer();
+  try{ const r=await fetch('/api/runs/'+id); if(r.ok) seedFromPersisted(await r.json()); }catch(e){}
+  if(ES){ES.close();ES=null;}
+  ES=new EventSource('/api/stream/'+id);
+  ES.onmessage=ev=>{try{applyEvent(JSON.parse(ev.data));}catch(e){}};
+  ES.onerror=()=>{};
+  renderAll();
+}
+
+function seedFromPersisted(d){
+  STATE.goal=d.goal||STATE.goal; STATE.posture=d.posture||STATE.posture;
+  STATE.status=d.status||STATE.status; STATE.synthesis=d.synthesis||null; STATE.stopReason=d.stop_reason||null;
+  STATE.frame=d.frame||null;
+  STATE.plan=d.plan||[]; STATE.planTotal=STATE.plan.length;
+  STATE.planAnswered=STATE.plan.filter(it=>it.status==='answered').length;
+  STATE.plan.forEach(it=>STATE.knownPlanIds.add(it.id));
+  document.getElementById('rh-goal').textContent=STATE.goal;
+  (d.passes||[]).forEach(p=>{
+    const n=p.pass_num; ensurePass(n); const P=STATE.passes[n];
+    P.core_goal=p.core_goal_restated||''; P.drill=p.director_drill||[]; P.drop=p.director_drop||[];
+    P.pursuing=p.director_pursuing||''; P.reasoning=p.continue_reasoning||''; P.decision=p.director_decision||'';
+    P.searches=(p.searches||[]).map(s=>({source:s.source,query:s.query,why:s.why,count:s.result_count,error:s.error,via:s.via,status:s.error?'fail':(s.result_count?'ok':'fail')}));
+    P.readUrls=[].concat(...(p.searches||[]).map(s=>s.read_urls||[]));
+    P.readFailed=[].concat(...(p.searches||[]).map(s=>s.read_failed||[]));
+    P.claims=p.extracted_claims||[]; P.threads=p.threads_identified||[]; P.contradictions=p.contradictions||[]; P.analysis=p.reviewer_analysis||'';
+    if(p.director_decision==='DONE') P.doneNode=true;
+    indexThreads(n,P.threads);
+  });
+  STATE.curPass=STATE.order.length;
+  if(STATE.status==='completed') STATE.stage='done';
+  if(STATE.status==='error') STATE.error=d.error;
+}
+
+function ensurePass(n){
+  if(!STATE.passes[n]){STATE.passes[n]={num:n,core_goal:'',drill:[],drop:[],pursuing:'',reasoning:'',decision:'',
+    searches:[],claims:[],threads:[],contradictions:[],analysis:'',open:true,doneNode:false};
+    STATE.order.push(n);STATE.order.sort((a,b)=>a-b);}
+  return STATE.passes[n];
+}
+function indexThreads(n,threads){(threads||[]).forEach(t=>{const k=(typeof t==='string'?t:(t.thread||'')).slice(0,40).toLowerCase();if(k&&!(k in STATE.threadIndex))STATE.threadIndex[k]=n;});}
+function lineageFor(text){const k=(text||'').slice(0,40).toLowerCase();for(const key in STATE.threadIndex){if(key&&k&&(k.includes(key.slice(0,18))||key.includes(k.slice(0,18))))return STATE.threadIndex[key];}return null;}
+
+/* events */
+function applyEvent(ev){
+  switch(ev.type){
+    case 'run_started': STATE.goal=ev.goal||STATE.goal; STATE.posture=ev.posture||STATE.posture; document.getElementById('rh-goal').textContent=STATE.goal; break;
+    case 'plan_started': STATE.stage='planning'; break;
+    case 'frame_defined': STATE.frame=ev.frame||null; STATE.stage='framed'; break;
+    case 'plan_drafted': STATE.plan=ev.plan||[]; STATE.planTotal=STATE.plan.length; STATE.plan.forEach(it=>STATE.knownPlanIds.add(it.id)); STATE.stage='planned'; break;
+    case 'plan_updated':{
+      // detect newly-added (discovered) items for flash
+      (ev.plan||[]).forEach(it=>{ if(!STATE.knownPlanIds.has(it.id)){ it._new=true; STATE.knownPlanIds.add(it.id); }});
+      STATE.plan=ev.plan||STATE.plan; STATE.planAnswered=ev.answered; STATE.planTotal=ev.total; break; }
+    case 'pass_started': ensurePass(ev.pass); STATE.curPass=ev.pass; STATE.stage=ev.stage==='reviewer'?'reviewing':'director thinking'; break;
+    case 'director_decision':{
+      const P=ensurePass(ev.pass); P.core_goal=ev.core_goal_restated||''; P.drill=ev.drill||[]; P.drop=ev.drop||[];
+      P.pursuing=ev.pursuing||''; P.reasoning=ev.continue_reasoning||''; P.decision=ev.decision||'';
+      P.coverage=ev.coverage_map||[]; P.weakest=ev.weakest_improvable||'';
+      STATE.pursuing=ev.pursuing||''; STATE.stage=ev.decision==='DONE'?'deciding done':'searching'; break; }
+    case 'continue_decision':{ const P=ensurePass(ev.pass); P.reasoning=ev.reasoning||P.reasoning; STATE.planAnswered=ev.answered; STATE.planTotal=ev.total; break; }
+    case 'done_decision':{ const P=ensurePass(ev.pass); P.doneNode=true; P.reasoning=ev.reasoning||P.reasoning; STATE.stopReason='model_done'; STATE.planAnswered=ev.answered; STATE.planTotal=ev.total; STATE.stage='synthesizing'; break; }
+    case 'user_stop': STATE.stopReason='user'; STATE.stage='synthesizing'; STATE.userStopNote=ev.note; break;
+    case 'safety_stop': STATE.stopReason='safety_ceiling'; STATE.stage='synthesizing'; STATE.safetyNote=ev.note; break;
+    case 'search_started':{ const P=ensurePass(ev.pass); let s=P.searches.find(x=>x.query===ev.query&&x.source===ev.source); if(!s){s={source:ev.source,query:ev.query,why:ev.why,status:'run',count:null,error:null,via:''};P.searches.push(s);} STATE.stage='searching'; break; }
+    case 'search_result':{ const P=ensurePass(ev.pass); let s=P.searches.find(x=>x.query===ev.query&&x.source===ev.source); if(!s){s={source:ev.source,query:ev.query,why:'',status:'',count:null,error:null,via:''};P.searches.push(s);} s.count=ev.count;s.error=ev.error;s.via=ev.via||'';s.status=ev.error?'fail':(ev.count?'ok':'fail'); break; }
+    case 'sources_read':{ const P=ensurePass(ev.pass); P.readUrls=(P.readUrls||[]).concat(ev.read||[]); P.readFailed=(P.readFailed||[]).concat(ev.failed||[]); STATE.stage='reading'; break; }
+    case 'claims_extracted':{ const P=ensurePass(ev.pass); P.claims=ev.claims||[]; P.threads=ev.threads||[]; P.contradictions=ev.contradictions||[]; indexThreads(ev.pass,P.threads); STATE.stage='reviewing'; break; }
+    case 'pass_complete': break;
+    case 'synthesis_started': STATE.stage='synthesizing'; break;
+    case 'synthesis_complete': STATE.synthesis=ev.synthesis; STATE.stage='done'; STATE.status='completed'; break;
+    case 'run_complete': STATE.status='completed'; STATE.stage='done'; STATE.stopReason=ev.stop_reason||STATE.stopReason; if(!STATE.completedAtMs)STATE.completedAtMs=Date.now(); break;
+    case 'run_error': STATE.error=ev.error; STATE.status='error'; break;
+    case 'reconstructed': if(ev.status)STATE.status=ev.status; break;
+    case 'done': if(STATE.status!=='error'&&STATE.synthesis)STATE.status='completed'; stopTimer(); break;
+    default: break;
+  }
+  renderAll();
+}
+
+/* stop control */
+async function stopRun(){
+  if(!STATE)return;
+  document.getElementById('stopbtn').disabled=true;
+  document.getElementById('stopbtn').textContent='■ wrapping up…';
+  try{ await fetch('/api/stop/'+STATE.id,{method:'POST'}); }catch(e){}
+}
+
+/* timer */
+function startTimer(){stopTimer();timerInt=setInterval(updHead,1000);}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}updHead();}
+
+function updHead(){
+  if(!STATE)return;
+  const live=STATE.status==='running';
+  const stageTxt={starting:'Starting',planning:'Framing & planning',framed:'Framing & planning',planned:'Plan ready',searching:'Retrieving corpus',reading:'Reading sources in full',reviewing:'Extracting claims',synthesizing:'Writing deliverable',done:'Complete'}[STATE.stage]||STATE.stage;
+  document.getElementById('rh-stage').innerHTML=(live?'<span class="spinner"></span> ':'')+esc(stageTxt);
+  document.getElementById('rh-posture').textContent=STATE.posture;
+  const _p1=STATE.passes[1];
+  const _nq=_p1?_p1.searches.length:0;
+  document.getElementById('rh-pass').innerHTML='<b>'+_nq+'</b> queries';
+  document.getElementById('rh-plan').innerHTML='plan <b>'+(STATE.planAnswered||0)+'</b>/'+(STATE.planTotal||0);
+  const startMs=STATE.startedAtMs||STATE.startedMs;
+  const endMs=(STATE.status==='running')?Date.now():(STATE.completedAtMs||Date.now());
+  const secs=Math.max(0,Math.floor((endMs-startMs)/1000));
+  document.getElementById('rh-elapsed').textContent=secs<60?secs+'s':Math.floor(secs/60)+'m '+(secs%60)+'s';
+  const srcs=[...new Set(STATE.order.flatMap(n=>STATE.passes[n].searches.map(s=>s.source)))];
+  document.getElementById('rh-sources').innerHTML=srcs.map(s=>`<span class="srctag ${s}" style="margin-left:2px">${SRC_LABEL[s]||s}</span>`).join('');
+  // stop button + stage pill state
+  const sb=document.getElementById('stopbtn');
+  if(!live){ sb.style.display='none';
+    const pill=document.getElementById('rh-stage');
+    if(STATE.stopReason){ pill.className='pill '+((STATE.stopReason==='model_done'||STATE.stopReason==='pipeline_complete')?'done':'stopped'); }
+  } else sb.style.display='';
+  document.getElementById('cc-dot').className='dot '+(live?'live':'');
+}
+
+function renderAll(){updHead();renderFrame();renderPlan();renderPipeline();renderTimeline();renderSynthesis();renderError();}
+
+function renderFrame(){
+  const box=document.getElementById('framebox');
+  const f=STATE.frame;
+  if(!f){ box.innerHTML='<div class="muted">reconstructing intent…</div>'; return; }
+  let h='';
+  if(f.intent) h+=`<div class="frow"><div class="flabel">Intent</div><div class="fval intent">${esc(f.intent)}</div></div>`;
+  if(f.subject) h+=`<div class="frow"><div class="flabel">Subject</div><div class="fval">${esc(f.subject)}</div></div>`;
+  if(f.constraints&&f.constraints.length) h+=`<div class="frow"><div class="flabel">Constraints</div><div class="fchips">${f.constraints.map(c=>`<span class="fchip">${esc(c)}</span>`).join('')}</div></div>`;
+  if(f.deliverable) h+=`<div class="frow"><div class="flabel">Deliverable</div><div class="fval deliverable">${esc(f.deliverable)}</div></div>`;
+  box.innerHTML=h||'<div class="muted">—</div>';
+}
+function renderError(){document.getElementById('err-slot').innerHTML=STATE.error?`<div class="err-banner"><b>Run error:</b> ${esc(STATE.error)} — partial results preserved below.</div>`:'';}
+
+const dThread=d=>!d?'':(typeof d==='string'?d:(d.thread||''));
+const dLead=d=>!d?'':(typeof d==='string'?d:(d.lead||d.thread||''));
+const dWhy=d=>(!d||typeof d==='string')?'':(d.why||'');
+
+/* PLAN SPINE */
+function renderPlan(){
+  const box=document.getElementById('planbox');
+  if(!STATE.plan.length){ box.innerHTML='<div class="muted">drafting plan…</div>'; return; }
+  const pct=STATE.planTotal?Math.round(100*STATE.planAnswered/STATE.planTotal):0;
+  let h=`<div class="planhead"><span class="ttl">Plan</span>
+    <div class="progress"><i style="width:${pct}%"></i></div>
+    <span class="count">${STATE.planAnswered} of ${STATE.planTotal} answered</span></div>`;
+  if(STATE.pursuing && STATE.status==='running') h+=`<div class="pursuing">▸ now pursuing: ${esc(STATE.pursuing)}</div>`;
+  STATE.plan.forEach(it=>{
+    const ans=it.status==='answered';
+    h+=`<div class="planitem ${it._new?'newflash':''}">
+      <div class="pmark ${ans?'answered':'open'}">${ans?'✓':'○'}</div>
+      <div><div class="pq"><span class="qid">${esc(it.id)}</span>${esc(it.question)}
+        ${it.origin==='discovered'?'<span class="gap">discovered gap</span>':''}
+        ${ans&&it.answered_pass?`<span class="ans">answered · pass ${it.answered_pass}</span>`:''}</div>
+        ${it.why?`<div class="pwhy">${esc(it.why)}</div>`:''}</div></div>`;
+  });
+  box.innerHTML=h;
+}
+
+/* PIPELINE TRACKER — plan → retrieve → review → synthesize (the linear 3-call flow) */
+const PIPE_STAGES=[
+  {key:'plan',label:'Plan',ic:'1',stages:['planning','framed','planned']},
+  {key:'retrieve',label:'Retrieve',ic:'2',stages:['searching','reading']},
+  {key:'review',label:'Review',ic:'3',stages:['reviewing']},
+  {key:'synth',label:'Synthesize',ic:'4',stages:['synthesizing','done']},
+];
+function pipeIndex(){
+  for(let i=PIPE_STAGES.length-1;i>=0;i--){ if(PIPE_STAGES[i].stages.includes(STATE.stage)) return i; }
+  return 0;
+}
+function pipeSub(key){
+  const P=STATE.passes[1];
+  if(key==='plan')     return STATE.planTotal?`${STATE.planTotal} components`:'';
+  if(key==='retrieve'){ if(!P||!P.searches.length) return '';
+    const rd=(P.readUrls||[]).length; return `${P.searches.length} queries`+(rd?` · ${rd} read full`:''); }
+  if(key==='review')    return P&&(P.claims||[]).length?`${P.claims.length} claims`:'';
+  if(key==='synth')     return STATE.synthesis?'deliverable ready':'';
+  return '';
+}
+function renderPipeline(){
+  const el=document.getElementById('pipeline');
+  if(!el) return;
+  const cur=pipeIndex();
+  const done=(STATE.status==='completed');
+  let h='';
+  PIPE_STAGES.forEach((st,i)=>{
+    let cls='';
+    if(done||i<cur) cls='done';
+    else if(i===cur && STATE.status==='running') cls='active';
+    const reached=(done||i<=cur);
+    const sub=pipeSub(st.key);
+    h+=`<div class="fnode ${cls}"><div class="fconnect"></div>
+      <div class="fcircle">${(done||i<cur)?'✓':st.ic}</div>
+      <div class="fpursue">${st.label}${sub?`<span class="pipesub">${esc(sub)}</span>`:''}</div></div>`;
+  });
+  el.innerHTML=h;
+}
+
+/* TIMELINE */
+function renderTimeline(){
+  const tl=document.getElementById('timeline');
+  let h='';
+  STATE.order.forEach(n=>{
+    const P=STATE.passes[n];
+    const single=(STATE.order.length===1);
+    const title=P.doneNode?'Decision: plan satisfied — done':(P.pursuing||dThread((P.drill||[])[0])||(single?'Retrieval & extraction':'Exploring'));
+    h+=`<div class="pass ${P.doneNode?'done':''}">
+      <div class="ph" onclick="togglePass(${n})">
+        <span class="num">${P.doneNode?'✓':n}</span>
+        <span class="ttl">${single?'':'Pass '+n+': '}${esc(trunc(title,76))}</span>
+        <span class="badge">${P.searches.length} queries · ${(P.claims||[]).length} claims ${P.open?'▾':'▸'}</span></div>
+      <div class="body" ${P.open?'':'style="display:none"'}>`;
+    if(P.searches&&P.searches.length){
+      const hits=P.searches.reduce((a,s)=>a+(s.count||0),0);
+      const rd=(P.readUrls||[]).length;
+      h+=`<div class="sect"><div class="goalview">Planned <b>${P.searches.length}</b> corpus queries → <b>${hits}</b> results retrieved → top <b>${rd}</b> read in full → one batch extraction</div></div>`;
+    }
+    if(P.core_goal) h+=`<div class="sect"><div class="goalview">Goal in view: ${esc(P.core_goal)}</div></div>`;
+    if(P.reasoning) h+=`<div class="reason ${P.doneNode?'doneR':''}"><div class="rl">${P.doneNode?'Stop reasoning (done-criteria)':'Continue reasoning (keep-going vs done)'}</div><div class="rt">${esc(P.reasoning)}</div></div>`;
+    if((P.drill&&P.drill.length)||(P.drop&&P.drop.length)){
+      h+=`<div class="sect"><div class="judge"><div class="jbox drill"><div class="jlab">▸ Drilled — pursuing</div>`;
+      (P.drill||[]).forEach(d=>{const lin=lineageFor(dThread(d));h+=`<div class="ji"><div class="lead">${esc(dThread(d))}${lin&&lin<n?`<span class="lineagetag">↳ pass ${lin}</span>`:''}</div>${dWhy(d)?`<div class="why">${esc(dWhy(d))}</div>`:''}</div>`;});
+      if(!(P.drill||[]).length)h+=`<div class="ji muted">—</div>`;
+      h+=`</div><div class="jbox drop"><div class="jlab">✕ Dropped — discarded</div>`;
+      (P.drop||[]).forEach(d=>{h+=`<div class="ji"><div class="lead">${esc(dLead(d))}</div>${dWhy(d)?`<div class="why">${esc(dWhy(d))}</div>`:''}</div>`;});
+      if(!(P.drop||[]).length)h+=`<div class="ji muted">—</div>`;
+      h+=`</div></div></div>`;
+    }
+    if(P.searches&&P.searches.length){
+      h+=`<div class="sect"><h4>Retrieval — corpus queries (${P.searches.length})</h4>`;
+      P.searches.forEach(s=>{let st='',cls='';
+        if(s.status==='run'){st='<span class="spinner"></span> searching';cls='run';}
+        else if(s.status==='fail'||s.error){st='FAILED'+(s.error?': '+esc(trunc(s.error,40)):' (0 results)');cls='fail';}
+        else if(s.count!=null){st=s.count+' results';cls='ok';}
+        const via=s.via?`<span class="via">${esc(s.via)}</span>`:'';
+        h+=`<div class="srch"><span class="srctag ${esc(s.source)}">${esc(SRC_LABEL[s.source]||s.source)}</span>
+          <div><div class="q">${esc(s.query)}${via}</div>${s.why?`<div class="w">${esc(s.why)}</div>`:''}</div>
+          <div class="st2 ${cls}">${st}</div></div>`;});
+      h+=`</div>`;
+    }
+    if(P.claims&&P.claims.length){
+      const nFull=P.claims.filter(c=>c&&c.from_full_read).length;
+      h+=`<div class="sect"><h4>Findings — claims (${P.claims.length})${nFull?` · <span style="color:var(--done)">${nFull} from full reads</span>`:''}</h4>`;
+      P.claims.forEach(c=>{const conf=(c.confidence||'').toLowerCase();const url=c.source_url||'';
+        h+=`<div class="claim ${conf||'low'}"><div class="ctext">${esc(c.claim||(typeof c==='string'?c:''))}</div>
+          <div class="cfoot">${conf?`<span class="confbadge ${conf}">${esc(conf)}</span>`:''}
+          ${c.from_full_read?'<span class="fullbadge">📄 full read</span>':'<span class="snipbadge">snippet</span>'}
+          ${url?`<a class="srclink" href="${esc(url)}" target="_blank" rel="noopener">↗ ${esc(srcHost(url))}</a>`:'<span class="faint srclink">no source url</span>'}</div></div>`;});
+      h+=`</div>`;
+    }
+    if(P.threads&&P.threads.length){h+=`<div class="sect"><h4>Threads opened</h4>`;P.threads.forEach(t=>{const txt=typeof t==='string'?t:(t.thread||'');const why=typeof t==='string'?'':(t.why||'');const sg=typeof t==='string'?'':(t.suggested_source||'');h+=`<div class="thread">${esc(txt)}${sg?` <span class="lineagetag">try ${esc(sg)}</span>`:''}${why?` <span class="muted">— ${esc(why)}</span>`:''}</div>`;});h+=`</div>`;}
+    if(P.contradictions&&P.contradictions.length){h+=`<div class="sect"><h4>Contradictions</h4>`;P.contradictions.forEach(c=>{h+=`<div class="contra">${esc(typeof c==='string'?c:JSON.stringify(c))}</div>`;});h+=`</div>`;}
+    if(P.analysis){h+=`<div class="sect"><h4>Reviewer analysis</h4><div class="md" style="font-size:13.5px">${marked.parse(String(P.analysis))}</div></div>`;}
+    h+=`</div></div>`;
+  });
+  tl.innerHTML=h;
+}
+function togglePass(n){STATE.passes[n].open=!STATE.passes[n].open;renderTimeline();}
+
+function renderSynthesis(){
+  const slot=document.getElementById('synth-slot');
+  if(STATE.synthesis){
+    const srcs=[...new Set(STATE.order.flatMap(n=>STATE.passes[n].searches.map(s=>s.source)))];
+    const tot=STATE.order.reduce((a,n)=>a+STATE.passes[n].searches.length,0);
+    const cl=STATE.order.reduce((a,n)=>a+STATE.passes[n].claims.length,0);
+    const readN=STATE.order.reduce((a,n)=>a+(STATE.passes[n].readUrls||[]).length,0);
+    const stopTxt={model_done:'model declared the plan satisfied',user:'you wrapped it up early',safety_ceiling:'safety ceiling (runaway guard)',pipeline_complete:'full plan retrieved & reviewed in one pass'}[STATE.stopReason]||'completed';
+    slot.innerHTML=`<div class="section-label">Report</div><div class="synthbox" id="synthbox">
+      <div class="summary-strip">
+        <div class="stat"><b>${tot}</b>corpus queries</div>
+        <div class="stat"><b>${STATE.planAnswered}/${STATE.planTotal}</b>plan answered</div>
+        <div class="stat"><b>${readN}</b>read in full</div>
+        <div class="stat"><b>${cl}</b>claims</div>
+        <div class="stat"><b>${srcs.length}</b>sources</div>
+        <div class="stat" style="text-transform:capitalize">stopped:<b style="font-size:13px;text-transform:none">${esc(stopTxt)}</b></div>
+      </div>
+      <div class="exportbar">
+        <a class="ghost" href="/api/runs/${STATE.id}/report/markdown">⬇ Markdown</a>
+        <a class="ghost" href="/api/runs/${STATE.id}/report/html">⬇ HTML</a>
+        <a class="ghost" href="/api/runs/${STATE.id}/report/pdf">⬇ PDF</a>
+        <a class="ghost" href="/api/runs/${STATE.id}/report/view" target="_blank">↗ Standalone</a>
+      </div>
+      <div class="md">${marked.parse(STATE.synthesis)}</div></div>`;
+  } else if(STATE.stage==='synthesizing'){
+    slot.innerHTML=`<div class="synthbox"><p class="muted"><span class="spinner"></span> Writing the deliverable from the extracted propositions…</p></div>`;
+  } else slot.innerHTML='';
+}
+function srcHost(u){try{return new URL(u).hostname.replace('www.','');}catch(e){return 'source';}}
+
+/* history */
+async function loadHistory(){
+  const list=document.getElementById('historylist');
+  list.innerHTML='<div class="empty">loading…</div>';
+  try{
+    const runs=await (await fetch('/api/runs')).json();
+    if(!runs.length){list.innerHTML='<div class="empty">No runs yet. Start one from Investigate.</div>';return;}
+    list.innerHTML=runs.map(run=>{
+      const stop={model_done:'model done',user:'user stopped',safety_ceiling:'safety stop',pipeline_complete:'pipeline'}[run.stop_reason]||'';
+      return `<div class="hrow" onclick="openRun('${run.id}', ${esc(JSON.stringify(run.goal))}, '${esc(run.posture||'deep')}')">
+        <div style="flex:1;min-width:0"><div class="hg">${esc(run.goal)}</div>
+          <div class="hsub">${esc((run.sources_used||[]).map(s=>SRC_LABEL[s]||s).join(' · '))}${stop?' · '+stop:''}</div></div>
+        <div class="hm">${esc((run.posture||'deep'))}${run.plan_total?` · plan ${run.plan_answered}/${run.plan_total}`:''}<br>${esc(run.started_at.slice(0,10))}</div>
+        <span class="statusdot ${esc(run.status)}">${esc(run.status)}</span></div>`;
+    }).join('');
+  }catch(e){list.innerHTML='<div class="empty">Failed to load history.</div>';}
+}
+
+window.addEventListener('hashchange',routeFromHash);
+function routeFromHash(){const m=location.hash.match(/#\/run\/([\w-]+)/);if(m)openRun(m[1]);}
+loadConfig();
+routeFromHash();
+</script>
+</body>
+</html>

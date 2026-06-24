@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data & generated artifacts (not part of the front end)
+data/
+output/
+*.log
+
+# Backups
+*.bak
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
