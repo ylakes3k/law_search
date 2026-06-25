@@ -63,6 +63,28 @@ Everything the user sees maps onto these stages. The **Pipeline tracker** (a 4-n
 is the spine of the live view. Keep that plan → retrieve → review → synthesize order sacred — it's
 the product's mental model.
 
+### 2.1 Pipeline → UI wiring (which stage feeds which component)
+
+This is the through-line: each pipeline step produces specific data, and that data lands in
+specific UI components. If a region is empty, it's because its stage hasn't run yet.
+
+| Pipeline step | Model call | Produces (data) | Feeds these UI components |
+|---------------|-----------|-----------------|---------------------------|
+| **1 · PLAN** | call ① | `frame{}` + `plan[]` + the full query battery | **Frame card** (§5.3b) ← `frame`; **Plan spine** (§5.3c) ← `plan[]`; **Pipeline node ① "Plan"** sublabel (`N components`); header **`plan x/y`** pill |
+| **2 · RETRIEVE** | *none (local)* | `searches[]` (query + hit count each) + `read_urls[]` (docs read in full) | **Retrieval query list** (§5.3e-ii) ← `searches[]`; **Retrieval summary line** (§5.3e-i); **Pipeline node ② "Retrieve"** sublabel (`N queries · M read full`); header **`N queries`** pill + **Sources** tags (Semantic/Keyword) |
+| **3 · REVIEW** | call ② | `extracted_claims[]` + `threads_identified[]` + `contradictions[]` + `reviewer_analysis` | **Claim cards** (§5.3e-iii) ← `extracted_claims[]`; **Threads** (§5.3e-iv); **Contradictions** (§5.3e-v); **Reviewer analysis** (§5.3e-vi); **Pipeline node ③ "Review"** sublabel (`N claims`) |
+| **4 · SYNTHESIZE** | call ③ | `synthesis` (Markdown) + `stop_reason` | **Report body** (§5.3f) ← `synthesis`; **Summary strip** stats; **Export bar**; **Pipeline node ④ "Synthesize"** (`deliverable ready`); stage pill → **Complete** |
+
+**Read it both ways:**
+- *Designing a component?* Find it in the right-hand column → that tells you which stage's data fills
+  it, and therefore what it should look like full vs. empty.
+- *Animating the run?* Go top-to-bottom: as each stage completes, its components populate and its
+  pipeline node turns green. That cascade **is** the live experience.
+
+Plain-language version: **Plan** writes the Frame card and Plan spine. **Retrieve** writes the query
+list. **Review** writes the claim cards, threads, and contradictions. **Synthesize** writes the final
+report. Four stages, four blocks of the screen, in the same order.
+
 ---
 
 ## 3. File & layout map
